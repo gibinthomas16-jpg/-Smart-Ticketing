@@ -1,34 +1,33 @@
-# Gradle files
-.gradle/
-build/
+from flask import Flask, request, jsonify
+from pricing import smart_price
+from fraud_detection import fraud_check
 
-# Local configuration file (sdk path, etc)
-local.properties
+app = Flask(__name__)
 
-# Log/OS Files
-*.log
+# Sample event data
+events = {
+    1: {"name": "Concert", "base_price": 1000, "tickets_left": 300}
+}
 
-# Android Studio generated files and folders
-captures/
-.externalNativeBuild/
-.cxx/
-*.aab
-*.apk
-output-metadata.json
+@app.route("/book", methods=["POST"])
+def book_ticket():
+    data = request.json
+    event = events[data["event_id"]]
 
-# IntelliJ
-*.iml
-.idea/
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
+    # Fraud check
+    if fraud_check(data["tickets"]):
+        return jsonify({"status": "Blocked", "reason": "Suspicious booking"}), 403
 
-# Keystore files
-*.jks
-*.keystore
+    # Smart pricing
+    price = smart_price(event["base_price"], event["tickets_left"])
+    event["tickets_left"] -= data["tickets"]
 
-# Google Services (e.g. APIs or Firebase)
-google-services.json
+    return jsonify({
+        "status": "Success",
+        "price_per_ticket": price,
+        "total_price": price * data["tickets"]
+    })
 
-# Android Profiling
-*.hprof
+if __name__ == "__main__":
+    app.run(debug=True)
+
